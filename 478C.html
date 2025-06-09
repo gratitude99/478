@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>4 7 8 呼吸法</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="4, 7, 8 呼吸法計時器">
+        <meta name="keywords" content="呼吸, 計時器, 4 7 8">
+        <meta name="robots" content="all">
+        <script type="text/javascript">   
+            var langStartDotDotDot = "開始...";
+            var langBreathOut = "呼出";
+            var langBreathIn = "吸氣";
+            var langHold = "閉氣";
+            var langStop = "停止";
+        </script>
+        <script type="text/javascript">   
+            var NOTE_C5 = 523.2511;            
+            var NOTE_B4 = 493.8833;
+            var NOTE_A4 = 440.0000;   
+            var NOTE_G4 = 391.9954;
+            var NOTE_F4 = 349.2282;
+            var NOTE_E4 = 329.6276;
+            var NOTE_D4 = 293.6648;
+            var NOTE_C4 = 261.6256 ; //middle C            
+            var NOTE_B3 = 246.9417;
+            var NOTE_A3 = 220.0000;
+            var NOTE_G3 = 195.9977;
+            var NOTE_F3 = 174.6141; 
+            var NOTE_E3 = 164.8138; 
+            var NOTE_D3 = 146.8324; 
+            var NOTE_C3 = 130.8128; 
+            var NOTE_B2 = 123.4708 ; 
+                        
+            var breathOutBeat = NOTE_D4;            
+            var breathInBeat = NOTE_B3;
+            var holdBeat = NOTE_G3;
+                
+            var curStatus = "O"; //O breath out, I=breath in , H =2
+            var multiplier = 1; //this can be bigger if one has ability to do longer, 1 = 4, 7, 8 seconds
+            var isRunning = false;
+            var curHandle;
+            var totalDurationHandle;
+            
+            var secondsLeft = 0;
+            
+            function getStatusDescription(){
+                if(curStatus=="O") return langBreathOut;
+                else if(curStatus=="I") return langBreathIn;
+                else if(curStatus=="H") return langHold;
+            }
+            
+            function getStatusDuration(){ //in seconds
+                if(curStatus=="O") return Math.round((8 * multiplier));
+                else if(curStatus=="I") return Math.round(4 * multiplier);
+                else if(curStatus=="H") return Math.round(7 * multiplier);
+            }
+            
+            
+            function start(){
+                clearInterval(curHandle);  
+                clearInterval(totalDurationHandle);  
+                multiplier = document.getElementById("multiplerID").value;                                
+                fixAudioContext();                
+                curStatus = "O"; //O breath out, I=breath in , H =2
+                secondsLeft = getStatusDuration();                         
+                document.getElementById("statusTDID").innerHTML=langStartDotDotDot;
+                isRunning = true;
+                curHandle = setTimeout(function(){
+                    loop();
+                }, 1000);
+                
+                var totalDuration = document.getElementById("totalDurationID").value;
+                if(totalDuration!=0){ //set a stop
+                    var totalDurationToUse = totalDuration * 60 * 1000;
+                    totalDurationHandle = setTimeout(function(){
+                        endOfTotalDuration();
+                    }, totalDurationToUse);                    
+                }
+                
+            }//* end start
+            
+            
+            var harmonySoundLevel = 0.02;
+            var beepDuration = 468;
+            var decrement = 50;
+            
+            function loop(){
+                if(!isRunning) return;                
+                
+                var aNote;
+                if(curStatus=="O"){  //out
+                    var i=0;                
+                    beep(beepDuration, breathOutBeat, 1);                                 
+                }
+                else if(curStatus=="I"){ 
+                    var i=0;   
+                    beep(beepDuration, breathInBeat, 1);      
+                }
+                else if(curStatus=="H"){ 
+                    var i=0;   
+                    beep(beepDuration, holdBeat, 1);                      
+                }
+        
+                var aDesc = getStatusDescription();
+                
+                document.getElementById("statusTDID").innerHTML=aDesc + ", " + secondsLeft;
+                secondsLeft --;
+                
+                curHandle = setTimeout(function(){
+                    if(secondsLeft==0){//* change status now                                            
+                        if(curStatus=="O") curStatus="I";
+                        else if(curStatus=="I") curStatus="H";
+                        else if(curStatus=="H") curStatus="O";
+                        secondsLeft = getStatusDuration();   
+                    }
+                    loop();
+                }, 1000);
+            }//* end loop
+            
+            
+            
+            function stop(){
+                isRunning = false;
+                clearInterval(curHandle);  
+                clearInterval(totalDurationHandle);  
+                document.getElementById("statusTDID").innerHTML="Stopped";                
+            }
+            
+            
+            
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            var audioCtx = new window.AudioContext();           
+            
+            
+            //All arguments are optional:
+            //duration of the tone in milliseconds. Default is 500
+            //frequency of the tone in hertz. default is 440
+            //volume of the tone. Default is 1, off is 0.
+            //type of tone. Possible values are sine, square, sawtooth, triangle, and custom. Default is sine.
+            //callback to use on end of tone
+            function beep(duration, frequency, volume, type, callback) {                
+                var oscillator = audioCtx.createOscillator();
+                var gainNode = audioCtx.createGain();                
+                if (volume) gainNode.gain.value = volume;
+                else gainNode.gain.value =1;
+                if (frequency){oscillator.frequency.value = frequency;}
+                if (callback){oscillator.onended = callback;}
+                if(duration==null) duration=500; //ms
+                if(duration<100) duration=100;
+                oscillator.type = "triangle";                  
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                gainNode.gain.setTargetAtTime(0.0000011, audioCtx.currentTime, 0.3);    //0.3 is sharp drop, 0.1 is sharper drop, 1 is flat drop
+                oscillator.start(audioCtx.currentTime);                
+                oscillator.stop(audioCtx.currentTime +1 + duration / 1000); //the + 1 will make sure we don't hear the click sound when the oscillator stops
+                            
+            };
+            
+            
+            function multipierOnChange(){
+                stop();
+                multiplier = document.getElementById("multiplerID").value;
+            }
+            
+            
+            
+            //* this is used to fix safari's auto-mute of audioContext
+            var fixAudioContext = function (e) {
+                try{
+                    audioCtx = new window.AudioContext();    
+                    if (audioCtx) {
+                        // Create empty buffer
+                        var buffer = audioCtx.createBuffer(1, 1, 22050);
+                        var source = audioCtx.createBufferSource();
+                        source.buffer = buffer;
+                        // Connect to output (speakers)
+                        source.connect(audioCtx.destination);
+                        // Play sound
+                        if (source.start) {
+                                source.start(0);
+                        } else if (source.play) {
+                                source.play(0);
+                        } else if (source.noteOn) {
+                                source.noteOn(0);
+                        }
+                    }
+                }catch(err){
+                    alert(err.message)
+                }                
+            };
+            
+            
+            
+            function endOfTotalDuration(){
+                stop();                
+                playEndNotes(); //* play the end notes                                
+            }
+            
+            
+            function playANote(frequency, duration, startTime, volumn) {                
+                var endTime = startTime  + duration;
+                var oscillator = audioCtx.createOscillator();
+                oscillator.frequency.value = frequency;
+                var gainNode = audioCtx.createGain();
+                if(volumn) gainNode.gain.value =volumn;
+                else gainNode.gain.value =1;                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start(audioCtx.currentTime + startTime);
+                oscillator.stop( audioCtx.currentTime + endTime);
+            }
+            
+            
+            function playEndNotes(){
+                var notes = [NOTE_G4, NOTE_D4, NOTE_B3, NOTE_G3];
+                var durations = [1, 1, 1, 1];                
+                var interval = 1;  
+                var curStartTime=0;
+                for (var i = 0; i < notes.length; i++) {
+                    playANote(notes[i], durations[i]  ,curStartTime, 0.6);
+                    curStartTime+=durations[i];
+                }
+            }
+                
+            
+        </script>
+    </head>
+    
+    <body style="background-color: white; margin:0px;padding:0px; text-align: center; ">
+        <center>
+            <table style="width: 100%; height: 100vh; background-color: #cc9">
+                <tr style="height:20%"> <td style="font-size: 50px; height:10%;width:100%; text-align: center; ">4, 7, 8 呼吸法</td></tr>
+                <tr style="height:20%"><td style="text-align: center;">
+                        <select id="multiplerID" onChange="multipierOnChange()" style="font-size:30px;">
+                            <option value="1">1倍 - 4, 7, 8</option>
+                            <option value="2">2倍 - 8, 14, 16</option>                            
+                            <option value="2.5">2.5倍 - 10, 18, 20</option>                            
+                            <option value="3">3倍 - 12, 21, 24</option>
+                            <option value="3.5">3.5倍 - 14, 25, 28</option>   
+                            <option value="4">4倍 - 16, 28, 32</option>
+                            <option value="4.5">4.5倍 - 18, 32, 36</option>                                                        
+                            <option value="5">5倍 - 20, 35, 40</option>
+                            <option value="5.5">5.5倍 - 22, 39, 44</option>                                                        
+                            <option value="6">6倍 - 24, 42, 48</option>
+                            <option value="6.5">6.5倍 - 26, 46, 52</option>                                                        
+                            <option value="7">7倍 - 28, 49, 56</option>
+                            <option value="7.5">7.5倍 - 30, 53, 60</option>                                                        
+                            <option value="8">8倍 - 32, 56, 64</option>
+                            <option value="8.5">8.5倍 - 34, 60, 68</option>                            
+                            <option value="9">9倍 - 36, 63, 72</option>
+                        </select><br/><br/>
+                        
+                         <select id="totalDurationID" onChange="stop();" style="font-size:28px;">
+                            <option value="0">一直持續</option>
+                            <option value="3">持續 3 分鐘</option>                            
+                            <option value="5">持續 5 分鐘</option>
+                            <option value="10">持續 10 分鐘</option>
+                            <option value="20">持續 20 分鐘</option>
+                            <option value="30">持續 30 分鐘</option>                            
+                        </select><br/><br/>
+                        
+                        <button id="startButID" style="width:200px; height:60px; font-size: 30px;" onClick="start()">開始</button> <br/><br/>
+                        <button id="stopButID"  style="width:200px; height:60px; font-size: 30px;" onClick="stop()">停止</button>
+                </td></tr>
+                <tr style="height:60%; font-size: 50px; vertical-align: top;"><td id="statusTDID" style="text-align: center;">請按開始按鈕</td></tr>
+                
+            </table>
+
+        </center>
+        
+       
+    </body>
+</html>
